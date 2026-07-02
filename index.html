@@ -35,35 +35,35 @@
             </label>
             <label>
               רחוב
-              <select id="originStreet"></select>
+              <select id="originStreet" disabled></select>
             </label>
-            <div class="selection-readout" id="originReadout">בחר נקודה על הרחוב במפה</div>
+            <div class="selection-readout" id="originReadout">בחר עיר מקור</div>
           </section>
 
-          <section class="endpoint" data-endpoint="destination">
+          <section class="endpoint locked" id="destinationPanel" data-endpoint="destination">
             <div class="endpoint-title">
               <span class="step-number">2</span>
               <h2>יעד</h2>
             </div>
             <label>
               עיר
-              <select id="destinationCity"></select>
+              <select id="destinationCity" disabled></select>
             </label>
             <label>
               רחוב
-              <select id="destinationStreet"></select>
+              <select id="destinationStreet" disabled></select>
             </label>
-            <div class="selection-readout" id="destinationReadout">בחר נקודה על הרחוב במפה</div>
+            <div class="selection-readout" id="destinationReadout">היעד יפתח אחרי סימון נקודת המקור</div>
           </section>
 
-          <section class="time-box">
+          <section class="time-box locked" id="timePanel">
             <div class="endpoint-title">
               <span class="step-number">3</span>
               <h2>מועד נסיעה</h2>
             </div>
             <label>
               יום
-              <select id="travelDay">
+              <select id="travelDay" disabled>
                 <option value="0">ראשון</option>
                 <option value="1">שני</option>
                 <option value="2">שלישי</option>
@@ -75,27 +75,27 @@
             </label>
             <label>
               שעה
-              <input id="travelTime" type="time" value="08:00" />
+              <input id="travelTime" type="time" value="08:00" disabled />
             </label>
           </section>
 
-          <button id="calculateBtn" class="primary-action" type="button">
+          <button id="calculateBtn" class="primary-action" type="button" disabled>
             חשב זמן נסיעה
           </button>
         </div>
 
         <section class="result" id="result" aria-live="polite">
           <div class="result-label">מוכן לחישוב</div>
-          <strong>בחר מקור ויעד מדויקים על הרחובות</strong>
-          <p>המערכת תחשב מרחק, עומס לפי שעה ויום, ותציג טווח הגעה משוער.</p>
+          <strong>בחר קודם מקור</strong>
+          <p>בחר עיר, אחר כך רחוב, ואז סמן נקודה מדויקת על הרחוב.</p>
         </section>
       </section>
 
       <section class="map-wrap" aria-label="מפת ישראל">
         <div id="map"></div>
         <div class="map-toolbar">
-          <button id="pickOrigin" class="tool-button active" type="button">סמן מקור</button>
-          <button id="pickDestination" class="tool-button" type="button">סמן יעד</button>
+          <button id="pickOrigin" class="tool-button" type="button" disabled>סמן מקור</button>
+          <button id="pickDestination" class="tool-button" type="button" disabled>סמן יעד</button>
           <a id="openWaze" class="tool-link disabled" href="#" target="_blank" rel="noreferrer">פתח ב-Waze</a>
         </div>
       </section>

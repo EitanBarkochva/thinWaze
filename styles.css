@@ -88,6 +88,19 @@ h1 {
   background: #fbfcfe;
 }
 
+.locked {
+  opacity: 0.58;
+}
+
+.is-hidden {
+  display: none;
+}
+
+.locked select,
+.locked input {
+  cursor: not-allowed;
+}
+
 .endpoint-title {
   display: flex;
   align-items: center;
@@ -153,8 +166,20 @@ input {
   cursor: pointer;
 }
 
+.primary-action:disabled,
+.tool-button:disabled {
+  background: #e6ebf1;
+  color: #8a96a6;
+  border-color: #d7dee8;
+  cursor: not-allowed;
+}
+
 .primary-action:hover {
   background: var(--blue-dark);
+}
+
+.primary-action:disabled:hover {
+  background: #e6ebf1;
 }
 
 .result {

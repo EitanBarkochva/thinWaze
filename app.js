@@ -1,4 +1,8 @@
-const ISRAEL_CENTER = [31.7, 34.95];
+const ISRAEL_BOUNDS = L.latLngBounds([
+  [29.45, 34.18],
+  [33.35, 35.9],
+]);
+const ISRAEL_CENTER = ISRAEL_BOUNDS.getCenter();
 
 const cityData = {
   "תל אביב-יפו": {
@@ -119,14 +123,18 @@ const cityData = {
 };
 
 const state = {
-  pickMode: "origin",
+  pickMode: null,
   origin: null,
   destination: null,
   activeStreetLayers: [],
   routeLayer: null,
 };
 
-const map = L.map("map", { zoomControl: false }).setView(ISRAEL_CENTER, 8);
+const map = L.map("map", {
+  zoomControl: false,
+  maxBounds: ISRAEL_BOUNDS.pad(0.35),
+  maxBoundsViscosity: 0.7,
+}).setView(ISRAEL_CENTER, 8);
 L.control.zoom({ position: "bottomleft" }).addTo(map);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -154,8 +162,10 @@ let destinationMarker = null;
 const controls = {
   originCity: document.getElementById("originCity"),
   originStreet: document.getElementById("originStreet"),
+  destinationPanel: document.getElementById("destinationPanel"),
   destinationCity: document.getElementById("destinationCity"),
   destinationStreet: document.getElementById("destinationStreet"),
+  timePanel: document.getElementById("timePanel"),
   originReadout: document.getElementById("originReadout"),
   destinationReadout: document.getElementById("destinationReadout"),
   travelDay: document.getElementById("travelDay"),
@@ -172,10 +182,10 @@ init();
 function init() {
   fillCitySelect(controls.originCity);
   fillCitySelect(controls.destinationCity);
-  controls.destinationCity.value = "ירושלים";
-  syncStreetSelect("origin");
-  syncStreetSelect("destination");
-  drawSelectedStreets();
+  resetStreetSelect("origin");
+  resetStreetSelect("destination");
+  lockDestination();
+  lockTimeAndCalculate();
 
   controls.originCity.addEventListener("change", () => handleCityChange("origin"));
   controls.originStreet.addEventListener("change", () => handleStreetChange("origin"));
@@ -186,11 +196,18 @@ function init() {
   controls.pickDestination.addEventListener("click", () => setPickMode("destination"));
 
   map.on("click", (event) => setEndpointFromClick(state.pickMode, event.latlng));
-  map.fitBounds(getIsraelBounds(), { padding: [20, 20] });
+  showFullIsraelMap();
+  map.whenReady(showFullIsraelMap);
 }
 
 function fillCitySelect(select) {
   select.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "בחר עיר";
+  placeholder.selected = true;
+  select.appendChild(placeholder);
+
   Object.keys(cityData).forEach((city) => {
     const option = document.createElement("option");
     option.value = city;
@@ -199,32 +216,90 @@ function fillCitySelect(select) {
   });
 }
 
+function resetStreetSelect(endpoint) {
+  const streetSelect = controls[`${endpoint}Street`];
+  streetSelect.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "בחר רחוב";
+  placeholder.selected = true;
+  streetSelect.appendChild(placeholder);
+  streetSelect.disabled = true;
+}
+
 function syncStreetSelect(endpoint) {
   const citySelect = controls[`${endpoint}City`];
   const streetSelect = controls[`${endpoint}Street`];
+
+  if (!citySelect.value) {
+    resetStreetSelect(endpoint);
+    return;
+  }
+
   streetSelect.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "בחר רחוב";
+  placeholder.selected = true;
+  streetSelect.appendChild(placeholder);
+
   Object.keys(cityData[citySelect.value].streets).forEach((street) => {
     const option = document.createElement("option");
     option.value = street;
     option.textContent = street;
     streetSelect.appendChild(option);
   });
+  streetSelect.disabled = false;
 }
 
 function handleCityChange(endpoint) {
+  clearEndpoint(endpoint);
+  clearRoute();
   syncStreetSelect(endpoint);
-  handleStreetChange(endpoint);
+  drawSelectedStreets();
+  setPickMode(null);
+
+  if (endpoint === "origin") {
+    resetDestinationFlow();
+  } else {
+    lockTimeAndCalculate();
+  }
+
+  const city = controls[`${endpoint}City`].value;
+  if (!city) {
+    updateReadout(endpoint);
+    map.fitBounds(getIsraelBounds(), { padding: [20, 20] });
+    return;
+  }
+
+  updateReadout(endpoint);
+  map.fitBounds(getCityBounds(city), { padding: [70, 70], maxZoom: 13 });
 }
 
 function handleStreetChange(endpoint) {
-  state[endpoint] = null;
-  updateReadout(endpoint);
+  clearEndpoint(endpoint);
   drawSelectedStreets();
   clearRoute();
-  setPickMode(endpoint);
+
+  if (endpoint === "origin") {
+    resetDestinationFlow();
+  } else {
+    lockTimeAndCalculate();
+  }
 
   const city = controls[`${endpoint}City`].value;
   const street = controls[`${endpoint}Street`].value;
+  updateReadout(endpoint);
+
+  if (!city || !street) {
+    setPickMode(null);
+    if (city) {
+      map.fitBounds(getCityBounds(city), { padding: [70, 70], maxZoom: 13 });
+    }
+    return;
+  }
+
+  setPickMode(endpoint);
   map.fitBounds(L.latLngBounds(cityData[city].streets[street]), { padding: [70, 70], maxZoom: 15 });
 }
 
@@ -235,6 +310,8 @@ function drawSelectedStreets() {
   ["origin", "destination"].forEach((endpoint) => {
     const city = controls[`${endpoint}City`].value;
     const street = controls[`${endpoint}Street`].value;
+    if (!city || !street) return;
+
     const color = endpoint === "origin" ? "#188a55" : "#c77800";
     const line = L.polyline(cityData[city].streets[street], {
       color,
@@ -247,12 +324,20 @@ function drawSelectedStreets() {
 }
 
 function setPickMode(mode) {
+  if (mode && !canPickEndpoint(mode)) {
+    mode = null;
+  }
+
   state.pickMode = mode;
   controls.pickOrigin.classList.toggle("active", mode === "origin");
   controls.pickDestination.classList.toggle("active", mode === "destination");
+  controls.pickOrigin.disabled = !canPickEndpoint("origin");
+  controls.pickDestination.disabled = !state.origin || !canPickEndpoint("destination");
 }
 
 function setEndpointFromClick(endpoint, latlng) {
+  if (!endpoint || !canPickEndpoint(endpoint)) return;
+
   const city = controls[`${endpoint}City`].value;
   const street = controls[`${endpoint}Street`].value;
   const snapped = closestPointOnStreet(latlng, cityData[city].streets[street]);
@@ -264,13 +349,15 @@ function setEndpointFromClick(endpoint, latlng) {
     } else {
       originMarker.setLatLng(snapped);
     }
-    setPickMode("destination");
+    unlockDestination();
+    setPickMode(canPickEndpoint("destination") ? "destination" : null);
   } else {
     if (!destinationMarker) {
       destinationMarker = L.marker(snapped, { icon: destinationIcon }).addTo(map);
     } else {
       destinationMarker.setLatLng(snapped);
     }
+    unlockTimeAndCalculate();
   }
 
   updateReadout(endpoint);
@@ -281,9 +368,26 @@ function setEndpointFromClick(endpoint, latlng) {
 function updateReadout(endpoint) {
   const point = state[endpoint];
   const readout = controls[`${endpoint}Readout`];
+  const city = controls[`${endpoint}City`].value;
+  const street = controls[`${endpoint}Street`].value;
+
+  if (endpoint === "destination" && !state.origin) {
+    readout.textContent = "היעד יפתח אחרי סימון נקודת המקור";
+    return;
+  }
+
+  if (!city) {
+    readout.textContent = `בחר עיר ${endpoint === "origin" ? "מקור" : "יעד"}`;
+    return;
+  }
+
+  if (!street) {
+    readout.textContent = "בחר רחוב";
+    return;
+  }
 
   if (!point) {
-    readout.textContent = "בחר נקודה על הרחוב במפה";
+    readout.textContent = "סמן נקודה מדויקת על הרחוב במפה";
     return;
   }
 
@@ -313,6 +417,69 @@ function calculateRoute() {
     <strong>${formatMinutes(range[0])} - ${formatMinutes(range[1])}</strong>
     <p>${state.origin.city} אל ${state.destination.city}, ${distanceKm.toFixed(1)} ק"מ משוערים, יום ${dayName} בשעה ${controls.travelTime.value}.</p>
   `;
+}
+
+function canPickEndpoint(endpoint) {
+  return Boolean(controls[`${endpoint}City`].value && controls[`${endpoint}Street`].value);
+}
+
+function clearEndpoint(endpoint) {
+  state[endpoint] = null;
+
+  if (endpoint === "origin" && originMarker) {
+    originMarker.remove();
+    originMarker = null;
+  }
+
+  if (endpoint === "destination" && destinationMarker) {
+    destinationMarker.remove();
+    destinationMarker = null;
+  }
+
+  if (endpoint === "destination") {
+    updateWazeLink();
+  }
+}
+
+function resetDestinationFlow() {
+  clearEndpoint("destination");
+  controls.destinationCity.value = "";
+  resetStreetSelect("destination");
+  lockDestination();
+  lockTimeAndCalculate();
+  updateReadout("destination");
+  updateWazeLink();
+}
+
+function lockDestination() {
+  controls.destinationPanel.classList.add("is-hidden");
+  controls.destinationPanel.classList.add("locked");
+  controls.destinationCity.disabled = true;
+  controls.destinationStreet.disabled = true;
+}
+
+function unlockDestination() {
+  controls.destinationPanel.classList.remove("is-hidden");
+  controls.destinationPanel.classList.remove("locked");
+  controls.destinationCity.disabled = false;
+  if (controls.destinationCity.value) {
+    controls.destinationStreet.disabled = false;
+  }
+  updateReadout("destination");
+}
+
+function lockTimeAndCalculate() {
+  controls.timePanel.classList.add("locked");
+  controls.travelDay.disabled = true;
+  controls.travelTime.disabled = true;
+  controls.calculateBtn.disabled = true;
+}
+
+function unlockTimeAndCalculate() {
+  controls.timePanel.classList.remove("locked");
+  controls.travelDay.disabled = false;
+  controls.travelTime.disabled = false;
+  controls.calculateBtn.disabled = false;
 }
 
 function drawRoute() {
@@ -406,8 +573,19 @@ function markerHtml(color, text) {
 }
 
 function getIsraelBounds() {
-  return L.latLngBounds([
-    [29.45, 34.18],
-    [33.35, 35.9],
-  ]);
+  return ISRAEL_BOUNDS;
+}
+
+function showFullIsraelMap() {
+  map.invalidateSize();
+  map.fitBounds(getIsraelBounds(), {
+    paddingTopLeft: [24, 24],
+    paddingBottomRight: [24, 24],
+    animate: false,
+  });
+}
+
+function getCityBounds(city) {
+  const points = Object.values(cityData[city].streets).flat();
+  return L.latLngBounds(points);
 }
