@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Little Waze - זמן נסיעה ממוצע</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIINfQ4x3v8q3H8Y4p5T4Yz+3V5Kk0D1iU0="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="controls" aria-label="בחירת מסלול">
+        <div class="brand">
+          <span class="brand-mark">LW</span>
+          <div>
+            <h1>Little Waze</h1>
+            <p>אומדן זמן נסיעה לפי מקור, יעד, יום ושעה</p>
+          </div>
+        </div>
+
+        <div class="route-panel">
+          <section class="endpoint" data-endpoint="origin">
+            <div class="endpoint-title">
+              <span class="step-number">1</span>
+              <h2>מקור</h2>
+            </div>
+            <label>
+              עיר
+              <select id="originCity"></select>
+            </label>
+            <label>
+              רחוב
+              <select id="originStreet"></select>
+            </label>
+            <div class="selection-readout" id="originReadout">בחר נקודה על הרחוב במפה</div>
+          </section>
+
+          <section class="endpoint" data-endpoint="destination">
+            <div class="endpoint-title">
+              <span class="step-number">2</span>
+              <h2>יעד</h2>
+            </div>
+            <label>
+              עיר
+              <select id="destinationCity"></select>
+            </label>
+            <label>
+              רחוב
+              <select id="destinationStreet"></select>
+            </label>
+            <div class="selection-readout" id="destinationReadout">בחר נקודה על הרחוב במפה</div>
+          </section>
+
+          <section class="time-box">
+            <div class="endpoint-title">
+              <span class="step-number">3</span>
+              <h2>מועד נסיעה</h2>
+            </div>
+            <label>
+              יום
+              <select id="travelDay">
+                <option value="0">ראשון</option>
+                <option value="1">שני</option>
+                <option value="2">שלישי</option>
+                <option value="3">רביעי</option>
+                <option value="4">חמישי</option>
+                <option value="5">שישי</option>
+                <option value="6">שבת</option>
+              </select>
+            </label>
+            <label>
+              שעה
+              <input id="travelTime" type="time" value="08:00" />
+            </label>
+          </section>
+
+          <button id="calculateBtn" class="primary-action" type="button">
+            חשב זמן נסיעה
+          </button>
+        </div>
+
+        <section class="result" id="result" aria-live="polite">
+          <div class="result-label">מוכן לחישוב</div>
+          <strong>בחר מקור ויעד מדויקים על הרחובות</strong>
+          <p>המערכת תחשב מרחק, עומס לפי שעה ויום, ותציג טווח הגעה משוער.</p>
+        </section>
+      </section>
+
+      <section class="map-wrap" aria-label="מפת ישראל">
+        <div id="map"></div>
+        <div class="map-toolbar">
+          <button id="pickOrigin" class="tool-button active" type="button">סמן מקור</button>
+          <button id="pickDestination" class="tool-button" type="button">סמן יעד</button>
+          <a id="openWaze" class="tool-link disabled" href="#" target="_blank" rel="noreferrer">פתח ב-Waze</a>
+        </div>
+      </section>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js"></script>
+  </body>
+</html>
